@@ -1,0 +1,21 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+venv/
+env/
+.venv/
+.idea/
+.vscode/
+.DS_Store
+
+# 运行产生的目录（用volume挂载即可）
+uploads/
+output/
+test_output/
+
+# git
+.git/
+.gitignore
+

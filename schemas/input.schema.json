@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "InputTableParsed",
+  "type": "object",
+  "properties": {
+    "meta": {
+      "type": "object"
+    },
+    "samples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "sample_id": {
+            "type": "string"
+          },
+          "species": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "sample_id",
+          "species"
+        ]
+      }
+    }
+  },
+  "required": [
+    "meta",
+    "samples"
+  ]
+}

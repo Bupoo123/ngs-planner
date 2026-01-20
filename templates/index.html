@@ -1,0 +1,648 @@
+{% extends "base.html" %}
+
+{% block content %}
+<form id="planningForm" enctype="multipart/form-data">
+    <div class="row">
+        <div class="col-md-6">
+            <h3 class="mb-4"><i class="bi bi-file-earmark-excel"></i> 文件上传</h3>
+            
+            <!-- 输入表（必需） -->
+            <div class="mb-3">
+                <label class="form-label">输入表 <span class="text-danger">*</span></label>
+                <div class="file-upload-area" id="inputFileArea">
+                    <i class="bi bi-cloud-upload" style="font-size: 2em; color: #667eea;"></i>
+                    <p class="mt-2">点击或拖拽文件到此处上传</p>
+                    <input type="file" class="form-control d-none" id="inputFile" name="input_file" accept=".xlsx,.xls" required>
+                    <button type="button" class="btn btn-sm btn-outline-primary" onclick="document.getElementById('inputFile').click()">选择文件</button>
+                    <div class="file-info" id="inputFileInfo"></div>
+                </div>
+            </div>
+            
+            <!-- 规则文件 -->
+            <div class="mb-3">
+                <label class="form-label">规则文件（可选）</label>
+                <div class="file-upload-area" id="rulesFileArea">
+                    <input type="file" class="form-control d-none" id="rulesFile" name="rules_file" accept=".xlsx,.xls">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('rulesFile').click()">选择文件</button>
+                    <div class="file-info" id="rulesFileInfo">未选择（将使用默认文件）</div>
+                </div>
+            </div>
+            
+            <!-- NC文件 -->
+            <div class="mb-3">
+                <label class="form-label">阴性对照文件（可选）</label>
+                <div class="file-upload-area" id="ncFileArea">
+                    <input type="file" class="form-control d-none" id="ncFile" name="nc_file" accept=".xlsx,.xls">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('ncFile').click()">选择文件</button>
+                    <div class="file-info" id="ncFileInfo">未选择（将使用默认文件）</div>
+                </div>
+            </div>
+            
+            <!-- PC文件 -->
+            <div class="mb-3">
+                <label class="form-label">阳性对照文件（可选）</label>
+                <div class="file-upload-area" id="pcFileArea">
+                    <input type="file" class="form-control d-none" id="pcFile" name="pc_file" accept=".xlsx,.xls">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('pcFile').click()">选择文件</button>
+                    <div class="file-info" id="pcFileInfo">未选择（将使用默认文件）</div>
+                </div>
+            </div>
+            
+            <!-- 物种列表 -->
+            <div class="mb-3">
+                <label class="form-label">物种列表（可选）</label>
+                <div class="file-upload-area" id="speciesFileArea">
+                    <input type="file" class="form-control d-none" id="speciesFile" name="species_file" accept=".xlsx,.xls">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('speciesFile').click()">选择文件</button>
+                    <div class="file-info" id="speciesFileInfo">未选择（将使用默认文件）</div>
+                </div>
+            </div>
+            
+            <!-- 测序仪对应关系 -->
+            <div class="mb-3">
+                <label class="form-label">测序仪对应关系（可选）</label>
+                <div class="file-upload-area" id="sequencerFileArea">
+                    <input type="file" class="form-control d-none" id="sequencerFile" name="sequencer_file" accept=".xlsx,.xls">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('sequencerFile').click()">选择文件</button>
+                    <div class="file-info" id="sequencerFileInfo">未选择（将使用默认文件）</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <h3 class="mb-4"><i class="bi bi-gear"></i> 参数配置</h3>
+            
+            <!-- 项目名称 -->
+            <div class="mb-3">
+                <label for="projectName" class="form-label">项目名称</label>
+                <input type="text" class="form-control" id="projectName" name="project_name" value="F项目" required>
+            </div>
+            
+            <!-- 芯片容量 -->
+            <div class="mb-3">
+                <label for="chipCapacity" class="form-label">芯片容量</label>
+                <input type="number" class="form-control" id="chipCapacity" name="chip_capacity" value="96" min="1" required>
+                <small class="text-muted">每个芯片可容纳的样本数量</small>
+            </div>
+            
+            <!-- 开始日期 -->
+            <div class="mb-3">
+                <label for="startDate" class="form-label">开始日期</label>
+                <input type="date" class="form-control" id="startDate" name="start_date" value="">
+                <small class="text-muted">留空则使用今天作为开始日期</small>
+            </div>
+            
+            <!-- 模板文件（可选） -->
+            <div class="mb-3">
+                <label class="form-label">文库表模板（可选）</label>
+                <div class="file-upload-area" id="libTemplateArea">
+                    <input type="file" class="form-control d-none" id="libTemplate" name="lib_template_file" accept=".xlsx,.xls">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('libTemplate').click()">选择文件</button>
+                    <div class="file-info" id="libTemplateInfo">未选择（将使用默认模板）</div>
+                </div>
+            </div>
+            
+            <div class="mb-3">
+                <label class="form-label">芯片表模板（可选）</label>
+                <div class="file-upload-area" id="chipTemplateArea">
+                    <input type="file" class="form-control d-none" id="chipTemplate" name="chip_template_file" accept=".xlsx,.xls">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('chipTemplate').click()">选择文件</button>
+                    <div class="file-info" id="chipTemplateInfo">未选择（将使用默认模板）</div>
+                </div>
+            </div>
+            
+            <!-- 提交按钮 -->
+            <div class="d-grid gap-2 mt-4">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="bi bi-play-circle"></i> 开始排布
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- 加载提示 -->
+<div class="loading" id="loading">
+    <div class="spinner-border text-primary" role="status">
+        <span class="visually-hidden">处理中...</span>
+    </div>
+    <p class="mt-3">正在处理，请稍候...</p>
+</div>
+
+<!-- 芯片表编辑区域 -->
+<div class="result-section" id="chipEditSection" style="display: none;">
+    <h3 class="mb-4"><i class="bi bi-table"></i> 芯片表编辑</h3>
+    <p class="text-muted mb-4">请检查并修改芯片表信息，确认无误后点击"确认并生成文库表预览"按钮</p>
+    
+    <!-- 统计信息 -->
+    <div class="row mb-4" id="chipStatsRow">
+        <!-- 统计卡片将通过JavaScript动态生成 -->
+    </div>
+    
+    <!-- 可编辑的芯片表 -->
+    <div class="table-responsive mb-4">
+        <table class="table table-bordered table-hover" id="chipTable">
+            <thead class="table-primary">
+                <tr>
+                    <th>实验项目</th>
+                    <th>测序日期</th>
+                    <th>测序仪SN</th>
+                    <th>Run数</th>
+                    <th>芯片SN</th>
+                    <th>测序仪型号</th>
+                    <th>试验结果</th>
+                    <th>备注2</th>
+                </tr>
+            </thead>
+            <tbody id="chipTableBody">
+                <!-- 芯片数据将通过JavaScript动态生成 -->
+            </tbody>
+        </table>
+    </div>
+    
+    <div class="text-center">
+        <button type="button" class="btn btn-success btn-lg" id="confirmChipBtn">
+            <i class="bi bi-check-circle"></i> 确认并生成文库表预览
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-lg ms-2" onclick="resetForm()">
+            <i class="bi bi-arrow-left"></i> 返回修改
+        </button>
+    </div>
+</div>
+
+<!-- 文库表预览/编辑区域 -->
+<div class="result-section" id="libraryEditSection" style="display: none;">
+    <h3 class="mb-4"><i class="bi bi-table"></i> 文库表预览（可编辑）</h3>
+    <p class="text-muted mb-4">请检查并修改文库表信息，确认无误后点击“确认生成文件”</p>
+
+    <div class="row mb-4" id="libraryStatsRow"></div>
+
+    <div class="table-responsive mb-4">
+        <table class="table table-bordered table-hover" id="libraryTable">
+            <thead class="table-primary">
+                <tr>
+                    <th>芯片</th>
+                    <th>芯片数据量</th>
+                    <th>上机时间</th>
+                    <th>样本名称</th>
+                    <th>文库编号</th>
+                    <th>index</th>
+                    <th>Clean Reads</th>
+                    <th>≥Q20%</th>
+                    <th>Q30</th>
+                    <th>物种名称</th>
+                    <th>分类</th>
+                    <th>taxid</th>
+                    <th>内部对照spike.1RPM值</th>
+                    <th>rpm</th>
+                </tr>
+            </thead>
+            <tbody id="libraryTableBody"></tbody>
+        </table>
+    </div>
+
+    <div class="text-center">
+        <button type="button" class="btn btn-success btn-lg" id="confirmLibraryBtn">
+            <i class="bi bi-download"></i> 确认生成文件
+        </button>
+        <button type="button" class="btn btn-outline-secondary btn-lg ms-2" onclick="resetForm()">
+            <i class="bi bi-arrow-left"></i> 重新开始
+        </button>
+    </div>
+</div>
+
+<!-- 结果展示 -->
+<div class="result-section" id="resultSection" style="display: none;">
+    <h3 class="mb-4"><i class="bi bi-check-circle text-success"></i> 排布完成</h3>
+    
+    <!-- 统计信息 -->
+    <div class="row mb-4" id="statsRow">
+        <!-- 统计卡片将通过JavaScript动态生成 -->
+    </div>
+    
+    <!-- 下载按钮 -->
+    <div class="row">
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="bi bi-file-earmark-spreadsheet" style="font-size: 3em; color: #667eea;"></i>
+                    <h5 class="card-title mt-3">合并输出文件</h5>
+                    <p class="card-text text-muted">包含文库表和芯片表</p>
+                    <a href="#" class="btn btn-primary" id="downloadCombined">
+                        <i class="bi bi-download"></i> 下载
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="bi bi-file-earmark-text" style="font-size: 3em; color: #667eea;"></i>
+                    <h5 class="card-title mt-3">文库表</h5>
+                    <p class="card-text text-muted">单独的文库表文件</p>
+                    <a href="#" class="btn btn-primary" id="downloadLibrary">
+                        <i class="bi bi-download"></i> 下载
+                    </a>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4 mb-3">
+            <div class="card">
+                <div class="card-body text-center">
+                    <i class="bi bi-file-earmark-check" style="font-size: 3em; color: #667eea;"></i>
+                    <h5 class="card-title mt-3">芯片表</h5>
+                    <p class="card-text text-muted">单独的芯片表文件</p>
+                    <a href="#" class="btn btn-primary" id="downloadChip">
+                        <i class="bi bi-download"></i> 下载
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="text-center mt-4">
+        <button type="button" class="btn btn-outline-secondary" onclick="resetForm()">
+            <i class="bi bi-arrow-clockwise"></i> 重新开始
+        </button>
+    </div>
+</div>
+
+<!-- 错误提示 -->
+<div class="alert alert-danger alert-dismissible fade" role="alert" id="errorAlert">
+    <i class="bi bi-exclamation-triangle"></i> <span id="errorMessage"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 存储芯片数据
+let chipData = [];
+// 存储文库数据
+let libraryData = [];
+
+// 文件选择处理
+function setupFileInput(inputId, infoId) {
+    const input = document.getElementById(inputId);
+    const info = document.getElementById(infoId);
+    
+    input.addEventListener('change', function(e) {
+        if (e.target.files.length > 0) {
+            info.textContent = '已选择: ' + e.target.files[0].name;
+            info.className = 'file-info text-success';
+        } else {
+            info.textContent = '未选择（将使用默认文件）';
+            info.className = 'file-info';
+        }
+    });
+}
+
+// 设置所有文件输入
+setupFileInput('inputFile', 'inputFileInfo');
+setupFileInput('rulesFile', 'rulesFileInfo');
+setupFileInput('ncFile', 'ncFileInfo');
+setupFileInput('pcFile', 'pcFileInfo');
+setupFileInput('speciesFile', 'speciesFileInfo');
+setupFileInput('sequencerFile', 'sequencerFileInfo');
+setupFileInput('libTemplate', 'libTemplateInfo');
+setupFileInput('chipTemplate', 'chipTemplateInfo');
+
+// 拖拽上传
+function setupDragDrop(areaId, inputId) {
+    const area = document.getElementById(areaId);
+    const input = document.getElementById(inputId);
+    
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        area.addEventListener(eventName, preventDefaults, false);
+    });
+    
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+    
+    ['dragenter', 'dragover'].forEach(eventName => {
+        area.addEventListener(eventName, () => area.classList.add('dragover'), false);
+    });
+    
+    ['dragleave', 'drop'].forEach(eventName => {
+        area.addEventListener(eventName, () => area.classList.remove('dragover'), false);
+    });
+    
+    area.addEventListener('drop', (e) => {
+        const dt = e.dataTransfer;
+        const files = dt.files;
+        if (files.length > 0) {
+            input.files = files;
+            input.dispatchEvent(new Event('change'));
+        }
+    }, false);
+}
+
+// 设置拖拽
+setupDragDrop('inputFileArea', 'inputFile');
+setupDragDrop('rulesFileArea', 'rulesFile');
+setupDragDrop('ncFileArea', 'ncFile');
+setupDragDrop('pcFileArea', 'pcFile');
+
+// 表单提交 - 第一步：生成芯片表
+document.getElementById('planningForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const formData = new FormData(this);
+    const loading = document.getElementById('loading');
+    const chipEditSection = document.getElementById('chipEditSection');
+    const libraryEditSection = document.getElementById('libraryEditSection');
+    const resultSection = document.getElementById('resultSection');
+    const errorAlert = document.getElementById('errorAlert');
+    
+    // 显示加载，隐藏结果和错误
+    loading.style.display = 'block';
+    chipEditSection.style.display = 'none';
+    libraryEditSection.style.display = 'none';
+    resultSection.style.display = 'none';
+    errorAlert.classList.remove('show');
+    
+    try {
+        const response = await fetch('/api/generate-chips', {
+            method: 'POST',
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            chipData = data.chips;
+            
+            // 显示统计信息
+            const chipStatsRow = document.getElementById('chipStatsRow');
+            chipStatsRow.innerHTML = `
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <h3>${data.stats.samples}</h3>
+                        <p>样本数</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <h3>${data.stats.chips}</h3>
+                        <p>芯片数</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <h3>${data.stats.nc_count}</h3>
+                        <p>阴性对照</p>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="stats-card">
+                        <h3>${data.stats.pc_count}</h3>
+                        <p>阳性对照</p>
+                    </div>
+                </div>
+            `;
+            
+            // 显示芯片表
+            displayChipTable(chipData);
+            
+            // 显示芯片编辑区域
+            loading.style.display = 'none';
+            chipEditSection.style.display = 'block';
+            chipEditSection.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            throw new Error(data.error || '处理失败');
+        }
+    } catch (error) {
+        loading.style.display = 'none';
+        document.getElementById('errorMessage').textContent = error.message;
+        errorAlert.classList.add('show');
+        setTimeout(() => {
+            errorAlert.classList.remove('show');
+        }, 5000);
+    }
+});
+
+// 显示芯片表
+function displayChipTable(chips) {
+    const tbody = document.getElementById('chipTableBody');
+    tbody.innerHTML = '';
+    
+    chips.forEach((chip, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input type="text" class="form-control form-control-sm" value="${chip.实验项目 || ''}" data-field="实验项目" data-index="${index}"></td>
+            <td><input type="number" class="form-control form-control-sm" value="${chip.测序日期 || ''}" data-field="测序日期" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${chip.测序仪SN || ''}" data-field="测序仪SN" data-index="${index}"></td>
+            <td><input type="number" class="form-control form-control-sm" value="${chip.Run数 || ''}" data-field="Run数" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${chip.芯片SN || ''}" data-field="芯片SN" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${chip.测序仪型号 || ''}" data-field="测序仪型号" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${chip.试验结果 || ''}" data-field="试验结果" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${chip.备注2 || ''}" data-field="备注2" data-index="${index}"></td>
+        `;
+        tbody.appendChild(row);
+    });
+    
+    // 添加输入事件监听器
+    tbody.querySelectorAll('input').forEach(input => {
+        input.addEventListener('change', function() {
+            const index = parseInt(this.dataset.index);
+            const field = this.dataset.field;
+            chipData[index][field] = this.value;
+        });
+    });
+}
+
+// 确认芯片表并生成文库表
+document.getElementById('confirmChipBtn').addEventListener('click', async function() {
+    const loading = document.getElementById('loading');
+    const chipEditSection = document.getElementById('chipEditSection');
+    const libraryEditSection = document.getElementById('libraryEditSection');
+    const resultSection = document.getElementById('resultSection');
+    const errorAlert = document.getElementById('errorAlert');
+    
+    // 更新芯片数据（从输入框）
+    document.querySelectorAll('#chipTableBody input').forEach(input => {
+        const index = parseInt(input.dataset.index);
+        const field = input.dataset.field;
+        chipData[index][field] = input.value;
+    });
+    
+    // 显示加载
+    loading.style.display = 'block';
+    errorAlert.classList.remove('show');
+    
+    try {
+        const response = await fetch('/api/generate-libraries', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ chips: chipData })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            loading.style.display = 'none';
+            chipData = data.chips || chipData;
+            libraryData = data.libraries || [];
+
+            const libraryStatsRow = document.getElementById('libraryStatsRow');
+            libraryStatsRow.innerHTML = `
+                <div class="col-md-6">
+                    <div class="stats-card">
+                        <h3>${data.stats.libraries}</h3>
+                        <p>文库行数</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stats-card">
+                        <h3>${data.stats.chips}</h3>
+                        <p>芯片数</p>
+                    </div>
+                </div>
+            `;
+
+            displayLibraryTable(libraryData);
+
+            chipEditSection.style.display = 'none';
+            resultSection.style.display = 'none';
+            libraryEditSection.style.display = 'block';
+            libraryEditSection.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            throw new Error(data.error || '生成文库表失败');
+        }
+    } catch (error) {
+        loading.style.display = 'none';
+        document.getElementById('errorMessage').textContent = error.message;
+        errorAlert.classList.add('show');
+        setTimeout(() => {
+            errorAlert.classList.remove('show');
+        }, 5000);
+    }
+});
+
+// 显示文库表
+function displayLibraryTable(libraries) {
+    const tbody = document.getElementById('libraryTableBody');
+    tbody.innerHTML = '';
+
+    const safe = (v) => (v === null || v === undefined) ? '' : String(v);
+
+    libraries.forEach((lib, index) => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['芯片'])}" data-field="芯片" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['芯片数据量'])}" data-field="芯片数据量" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['上机时间'])}" data-field="上机时间" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['样本名称'])}" data-field="样本名称" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['文库编号'])}" data-field="文库编号" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['index'])}" data-field="index" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['Clean Reads'])}" data-field="Clean Reads" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['≥Q20%'])}" data-field="≥Q20%" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['Q30'])}" data-field="Q30" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['物种名称'])}" data-field="物种名称" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['分类'])}" data-field="分类" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['taxid'])}" data-field="taxid" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['内部对照spike.1RPM值'])}" data-field="内部对照spike.1RPM值" data-index="${index}"></td>
+            <td><input type="text" class="form-control form-control-sm" value="${safe(lib['rpm'])}" data-field="rpm" data-index="${index}"></td>
+        `;
+        tbody.appendChild(row);
+    });
+
+    tbody.querySelectorAll('input').forEach(input => {
+        input.addEventListener('change', function() {
+            const index = parseInt(this.dataset.index);
+            const field = this.dataset.field;
+            libraryData[index][field] = this.value;
+        });
+    });
+}
+
+// 第三步：确认文库表并生成文件
+document.getElementById('confirmLibraryBtn').addEventListener('click', async function() {
+    const loading = document.getElementById('loading');
+    const libraryEditSection = document.getElementById('libraryEditSection');
+    const resultSection = document.getElementById('resultSection');
+    const errorAlert = document.getElementById('errorAlert');
+
+    // 同步输入框到数据
+    document.querySelectorAll('#libraryTableBody input').forEach(input => {
+        const index = parseInt(input.dataset.index);
+        const field = input.dataset.field;
+        libraryData[index][field] = input.value;
+    });
+
+    loading.style.display = 'block';
+    errorAlert.classList.remove('show');
+
+    try {
+        const response = await fetch('/api/generate-files', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ chips: chipData, libraries: libraryData })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            const statsRow = document.getElementById('statsRow');
+            statsRow.innerHTML = `
+                <div class="col-md-6">
+                    <div class="stats-card">
+                        <h3>${data.stats.libraries}</h3>
+                        <p>文库行数</p>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="stats-card">
+                        <h3>${data.stats.chips}</h3>
+                        <p>芯片数</p>
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('downloadCombined').href = '/api/download/combined';
+            document.getElementById('downloadLibrary').href = '/api/download/library';
+            document.getElementById('downloadChip').href = '/api/download/chip';
+
+            loading.style.display = 'none';
+            libraryEditSection.style.display = 'none';
+            resultSection.style.display = 'block';
+            resultSection.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            throw new Error(data.error || '生成文件失败');
+        }
+    } catch (error) {
+        loading.style.display = 'none';
+        document.getElementById('errorMessage').textContent = error.message;
+        errorAlert.classList.add('show');
+        setTimeout(() => errorAlert.classList.remove('show'), 5000);
+    }
+});
+
+// 重置表单
+function resetForm() {
+    document.getElementById('planningForm').reset();
+    document.getElementById('resultSection').style.display = 'none';
+    document.getElementById('chipEditSection').style.display = 'none';
+    document.getElementById('libraryEditSection').style.display = 'none';
+    chipData = [];
+    libraryData = [];
+    document.querySelectorAll('.file-info').forEach(info => {
+        if (info.id !== 'inputFileInfo') {
+            info.textContent = '未选择（将使用默认文件）';
+            info.className = 'file-info';
+        } else {
+            info.textContent = '';
+        }
+    });
+    
+    // 清理session
+    fetch('/api/cleanup', { method: 'POST' });
+    
+    // 滚动到顶部
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+{% endblock %}

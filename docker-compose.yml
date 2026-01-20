@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  ngs-planner:
+    build: .
+    container_name: ngs-planner
+    ports:
+      - "5123:5123"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      # 方便持久化输出（下载/查看）
+      - ./output:/app/output
+      # 如果你希望容器内也能看到你本机更新后的输入/模板文件，可打开这两行：
+      # - ./attachments:/app/attachments
+      # - ./ref:/app/ref
+    restart: unless-stopped
+

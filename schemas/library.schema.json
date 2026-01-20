@@ -1,0 +1,39 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LibraryRow",
+  "type": "object",
+  "properties": {
+    "芯片": {
+      "type": "string"
+    },
+    "芯片数据量": {
+      "type": "string"
+    },
+    "上机时间": {
+      "type": "string"
+    },
+    "上机时间.1": {
+      "type": "string"
+    },
+    "样本名称": {
+      "type": "string"
+    },
+    "文库编号": {
+      "type": "string"
+    },
+    "index": {
+      "type": "string"
+    },
+    "物种名称": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "芯片",
+    "上机时间",
+    "样本名称",
+    "文库编号",
+    "index",
+    "物种名称"
+  ]
+}
