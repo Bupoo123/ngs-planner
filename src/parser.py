@@ -41,6 +41,19 @@ class InputParser:
         # 输入表是“配置项(key,value,备注)”+“样本行(样本名,物种)”的结构
         sample_id_re = re.compile(r"^[A-Za-z]-\d{4}-\d{2}$")  # 例如 F-0020-01
 
+        def split_semicolon(val: Any) -> List[str]:
+            """
+            支持英文分号;（也兼容中文；）分隔，去掉空项并strip。
+            """
+            if val is None:
+                return []
+            s = str(val).strip()
+            if s == "":
+                return []
+            s = s.replace("；", ";")
+            parts = [p.strip() for p in s.split(";")]
+            return [p for p in parts if p != ""]
+
         for r in range(1, ws.max_row + 1):
             k = ws.cell(r, 1).value
             v1 = ws.cell(r, 2).value
@@ -53,25 +66,42 @@ class InputParser:
 
             # 样本行：A列为样本名，B列为病原体/物种名称
             if sample_id_re.match(k_str):
-                pathogen = "" if v1 is None else str(v1).strip()
-                rpm_range = "" if v2 is None else str(v2).strip()
-                spike_rpm_range = "" if v3 is None else str(v3).strip()
+                pathogens = split_semicolon(v1)
+                rpm_ranges = split_semicolon(v2)
+                spike_ranges = split_semicolon(v3)
 
-                # 兼容旧结构：若未填范围，就只保存病原体名称
-                samples.append(
-                    {
-                        "sample_id": k_str,
-                        "species": [
-                            {
-                                "name": pathogen,
-                                "rpm_range": rpm_range,
-                                "spike_rpm_range": spike_rpm_range,
-                            }
-                        ]
-                        if pathogen
-                        else [],
-                    }
-                )
+                # 配对规则：
+                # - Value1: 病原体列表（必需）
+                # - Value2: rpm范围列表；若只给1个则应用到所有病原体；若给N个则需与病原体数量一致
+                # - Value3: spike-rpm范围列表；同上
+                species: List[Dict[str, Any]] = []
+                n = len(pathogens)
+                if n > 0:
+                    for i, name in enumerate(pathogens):
+                        rpm_i = ""
+                        spike_i = ""
+                        if len(rpm_ranges) == 1:
+                            rpm_i = rpm_ranges[0]
+                        elif len(rpm_ranges) == n:
+                            rpm_i = rpm_ranges[i]
+                        elif len(rpm_ranges) == 0:
+                            rpm_i = ""
+                        else:
+                            # 数量不一致时：保留空，避免错误阻断（也可改成 raise）
+                            rpm_i = ""
+
+                        if len(spike_ranges) == 1:
+                            spike_i = spike_ranges[0]
+                        elif len(spike_ranges) == n:
+                            spike_i = spike_ranges[i]
+                        elif len(spike_ranges) == 0:
+                            spike_i = ""
+                        else:
+                            spike_i = ""
+
+                        species.append({"name": name, "rpm_range": rpm_i, "spike_rpm_range": spike_i})
+
+                samples.append({"sample_id": k_str, "species": species})
                 continue
 
             # 配置项

@@ -133,12 +133,21 @@ def generate_chips():
         species_info = ref_parser.parse_species()
         sequencer_info = ref_parser.parse_sequencer()
 
+        # IMPORTANT: Flask默认session是cookie存储，不能塞大对象（会超过浏览器4KB限制）
+        # 所以把输入上下文落盘到 work_dir，仅在session里保存路径。
+        # 记录芯片容量（每张芯片最多承载多少“样本单位/接头”）
+        try:
+            chip_capacity = int(request.form.get("chip_capacity", 96))
+        except Exception:
+            chip_capacity = 96
+
+        # 把chip_capacity注入meta，供芯片表数量计算使用
+        meta["chip_capacity"] = chip_capacity
+
         # 按输入表meta生成芯片表（RUN等允许用户后续编辑）
         chip_planner = ChipPlanner(rules=rules, sequencer_info=sequencer_info)
         chips = chip_planner.plan_chips_from_input(meta)
-        
-        # IMPORTANT: Flask默认session是cookie存储，不能塞大对象（会超过浏览器4KB限制）
-        # 所以把输入上下文落盘到 work_dir，仅在session里保存路径。
+
         input_ctx = {
             "samples": input_data["samples"],
             "rules": rules,
@@ -149,6 +158,7 @@ def generate_chips():
                 "实验启动时间": meta.get("实验启动时间"),
                 "实验时间（天）": meta.get("实验时间（天）"),
                 "接头起点": meta.get("接头起点", "A01"),
+                "chip_capacity": chip_capacity,
                 # PC/NC 的 spike-rpm 范围来自输入表的 F-PC/F-NC 的 Value3
                 "F-PC__value3": meta.get("F-PC__value3"),
                 "F-NC__value3": meta.get("F-NC__value3"),
@@ -264,6 +274,7 @@ def generate_libraries():
         research_id = meta.get("研究编号") or ""
         pc_spike = meta.get("F-PC__value3") or ""
         nc_spike = meta.get("F-NC__value3") or ""
+        chip_capacity = int(meta.get("chip_capacity") or 96)
 
         library_planner = LibraryPlanner(
             rules=rules,
@@ -276,7 +287,14 @@ def generate_libraries():
         )
 
         # 规划文库：默认每张芯片都跑同一套样本（符合“不同机型/不同天重复测试”的场景）
-        libraries = library_planner.plan_libraries(samples=input_data["samples"], chips=chips, research_id=str(research_id).strip())
+        libraries = library_planner.plan_libraries(
+            samples=input_data["samples"],
+            chips=chips,
+            research_id=str(research_id).strip(),
+            chip_capacity=chip_capacity,
+            include_controls_once=False,
+            include_controls_per_chip=True,
+        )
         
         return jsonify(
             {

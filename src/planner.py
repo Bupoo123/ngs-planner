@@ -6,6 +6,7 @@ from typing import Dict, List, Any, Optional
 from datetime import datetime, timedelta, date
 import re
 import random
+import math
 
 
 class LibraryPlanner:
@@ -130,6 +131,9 @@ class LibraryPlanner:
         samples: List[Dict[str, Any]],
         chips: List[Dict[str, Any]],
         research_id: Optional[str] = None,
+        chip_capacity: int = 96,
+        include_controls_once: bool = False,
+        include_controls_per_chip: bool = True,
     ) -> List[Dict[str, Any]]:
         """
         规划文库排布（按规则生成文库编号/index/日期等）
@@ -143,28 +147,59 @@ class LibraryPlanner:
         """
         libraries: List[Dict[str, Any]] = []
 
+        if chip_capacity <= 0:
+            raise ValueError(f"芯片容量必须>0，当前: {chip_capacity}")
+
+        # 每个“样本单位”占用一个接头：普通样本、PC、NC
+        controls_units = (1 if self.pc_list else 0) + 1  # pc可选，nc必有
+        if include_controls_per_chip and chip_capacity <= controls_units:
+            raise ValueError(f"芯片容量({chip_capacity})不足以放入PC/NC质控({controls_units})")
+
+        sample_slots = chip_capacity - controls_units if include_controls_per_chip else chip_capacity
+        if sample_slots <= 0:
+            raise ValueError(f"芯片容量({chip_capacity})不足以放入样本")
+
+        # 每台测序仪“一轮”需要的芯片张数（用于在同一测序仪上重复分配样本）
+        chips_per_round = max(1, math.ceil(len(samples) / sample_slots))
+
+        # 每个测序仪当前处于一轮中的第几张芯片（0..chips_per_round-1），达到后回到0进入下一轮（重复）
+        pos_by_sn: Dict[str, int] = {}
+
         # 接头号全局连续：跨芯片不重置
         adapter = self.adapter_start
 
+        # 命名：F-{研究编号}-CN-PC / F-{研究编号}-CN-NC
+        rid = (research_id or "").strip()
+        pc_name = f"F-{rid}-CN-PC" if rid else "PC"
+        nc_name = f"F-{rid}-CN-NC" if rid else "NC"
+
         for chip in chips:
-            chip_sn = str(chip.get("芯片SN", "")).strip()
+            chip_sn = str(chip.get("芯片SN", "")).strip() or "UNKNOWN_CHIP_SN"
             seq_sn = str(chip.get("测序仪SN", "")).strip()
             yymmdd = chip.get("测序日期")
-
-            if not chip_sn:
-                # 如果芯片SN未给，至少用占位避免空
-                chip_sn = "UNKNOWN_CHIP_SN"
 
             yyyymmdd = self._yymmdd_to_yyyymmdd_str(yymmdd)
             up_time = self._yyyymmdd_to_dot_date(yyyymmdd)
             sn_last3 = self._sn_last3_digits(seq_sn)
 
-            # 1) 普通样本（输入表行）——接头号按行顺序递增
-            for sample in samples:
+            # 当前测序仪本轮第几张芯片：决定该芯片承载哪一段样本
+            pos = pos_by_sn.get(seq_sn, 0)
+            start = pos * sample_slots
+            end = min(start + sample_slots, len(samples))
+            assigned_samples = samples[start:end]
+            pos_by_sn[seq_sn] = (pos + 1) % chips_per_round
+
+            # 1) 普通样本段
+            for sample in assigned_samples:
                 sample_id = str(sample.get("sample_id", "")).strip()
                 species_list = sample.get("species", []) or []
-                # 兼容旧结构：species可能是字符串列表
-                for species in (species_list or [""]):
+
+                # 一个样本只占用一个接头/一个文库编号
+                sample_index = adapter
+                library_id = f"{sample_id}-{sn_last3}-{sample_index}-{yyyymmdd}"
+
+                species_iter = species_list if species_list else [""]
+                for species in species_iter:
                     if isinstance(species, dict):
                         species_name = str(species.get("name", "")).strip()
                         rpm_range_s = species.get("rpm_range", "")
@@ -176,102 +211,107 @@ class LibraryPlanner:
 
                     rpm_v = self._rand_in_range(self._parse_range(rpm_range_s))
                     spike_v = self._rand_in_range(self._parse_range(spike_range_s))
-
-                    library_id = f"{sample_id}-{sn_last3}-{adapter}-{yyyymmdd}"
                     extra = self._lookup_species(species_name)
 
-                    row: Dict[str, Any] = {
-                        "芯片": chip_sn,
-                        "芯片数据量": self.default_chip_data_amount,
-                        "上机时间": up_time,
-                        "样本名称": sample_id,
-                        "文库编号": library_id,
-                        "index": adapter,
-                        "Clean Reads": "",
-                        "≥Q20%": "",
-                        "Q30": "",
-                        "物种名称": species_name,
-                        # 新输入要求：按范围随机生成
-                        "rpm": rpm_v if rpm_v is not None else "",
-                        # 模板列名是这个（示例输出也有）
-                        "内部对照spike.1RPM值": spike_v if spike_v is not None else "",
-                        "分类": extra.get("分类", ""),
-                        "taxid": extra.get("taxid", ""),
-                        "拉丁文": extra.get("拉丁文", ""),
-                    }
-                    libraries.append(row)
-
-                    adapter = self._next_adapter(adapter)
-
-            # 2) PC/NC 质控：接头继续顺延，不重置
-            # 命名：F-{研究编号}-CN-PC / F-{研究编号}-CN-NC
-            rid = (research_id or "").strip()
-            if rid:
-                pc_name = f"F-{rid}-CN-PC"
-                nc_name = f"F-{rid}-CN-NC"
-            else:
-                pc_name = "PC"
-                nc_name = "NC"
-
-            # PC：同一个 index/文库编号，展开成多条病原体行（与你截图一致）
-            if self.pc_list:
-                pc_index = adapter
-                pc_lib_id = f"{pc_name}-{pc_index}-{yyyymmdd}"
-                pc_spike_v = self._rand_in_range(self._parse_range(self.pc_spike_rpm_range))
-                for pc in self.pc_list:
-                    species_name = str(pc.get("物种名称", "")).strip()
-                    extra = self._lookup_species(species_name)
-                    # rpm 参考 PC.xlsx 的 rpm 列（通常是范围字符串，如 50~100）
-                    pc_rpm_v = self._rand_in_range(self._parse_range(pc.get("rpm", "")))
                     libraries.append(
                         {
                             "芯片": chip_sn,
                             "芯片数据量": self.default_chip_data_amount,
                             "上机时间": up_time,
-                            "样本名称": pc_name,
-                            "文库编号": pc_lib_id,
-                            "index": pc_index,
+                            "样本名称": sample_id,
+                            "文库编号": library_id,
+                            "index": sample_index,
                             "Clean Reads": "",
                             "≥Q20%": "",
                             "Q30": "",
+                            "内部对照spike.1RPM值": spike_v if spike_v is not None else "",
                             "物种名称": species_name,
-                            "分类": pc.get("分类", extra.get("分类", "")),
-                            "taxid": pc.get("taxid", extra.get("taxid", "")),
-                            "拉丁文": extra.get("拉丁文", ""),
-                            "rpm": pc_rpm_v if pc_rpm_v is not None else "",
-                            "内部对照spike.1RPM值": pc_spike_v if pc_spike_v is not None else "",
+                            "分类": extra.get("分类", ""),
+                            "taxid": extra.get("taxid", ""),
+                            "RC": "",
+                            "RA": "",
+                            "rpm": rpm_v if rpm_v is not None else "",
+                            "uniq rpm": "",
+                            "coverage": "",
+                            "abundance": "",
+                            "标准": "",
+                            "参照背景": "",
                         }
                     )
+
                 adapter = self._next_adapter(adapter)
 
-            # NC：一条记录（物种名称通常为 /），占用一个 index
-            # 取 NC列表第一行；若为空则用默认 “/”
-            nc_index = adapter
-            nc_lib_id = f"{nc_name}-{nc_index}-{yyyymmdd}"
-            nc_species = "/"
-            if self.nc_list:
-                nc_species = str(self.nc_list[0].get("物种名称", "/")).strip() or "/"
-            nc_spike_v = self._rand_in_range(self._parse_range(self.nc_spike_rpm_range))
-            libraries.append(
-                {
-                    "芯片": chip_sn,
-                    "芯片数据量": self.default_chip_data_amount,
-                    "上机时间": up_time,
-                    "样本名称": nc_name,
-                    "文库编号": nc_lib_id,
-                    "index": nc_index,
-                    "Clean Reads": "",
-                    "≥Q20%": "",
-                    "Q30": "",
-                    "物种名称": nc_species,
-                    "分类": "",
-                    "taxid": "",
-                    "拉丁文": "",
-                    "rpm": "",
-                    "内部对照spike.1RPM值": nc_spike_v if nc_spike_v is not None else "",
-                }
-            )
-            adapter = self._next_adapter(adapter)
+            # 2) 每张芯片都追加 PC/NC（按你确认）
+            if include_controls_per_chip:
+                # PC：同一index/文库编号，展开多条病原体
+                if self.pc_list:
+                    pc_index = adapter
+                    pc_lib_id = f"{pc_name}-{pc_index}-{yyyymmdd}"
+                    pc_spike_v = self._rand_in_range(self._parse_range(self.pc_spike_rpm_range))
+                    for pc in self.pc_list:
+                        species_name = str(pc.get("物种名称", "")).strip()
+                        extra = self._lookup_species(species_name)
+                        pc_rpm_v = self._rand_in_range(self._parse_range(pc.get("rpm", "")))
+                        libraries.append(
+                            {
+                                "芯片": chip_sn,
+                                "芯片数据量": self.default_chip_data_amount,
+                                "上机时间": up_time,
+                                "样本名称": pc_name,
+                                "文库编号": pc_lib_id,
+                                "index": pc_index,
+                                "Clean Reads": "",
+                                "≥Q20%": "",
+                                "Q30": "",
+                                "内部对照spike.1RPM值": pc_spike_v if pc_spike_v is not None else "",
+                                "物种名称": species_name,
+                                "分类": pc.get("分类", extra.get("分类", "")),
+                                "taxid": pc.get("taxid", extra.get("taxid", "")),
+                                "RC": "",
+                                "RA": "",
+                                "rpm": pc_rpm_v if pc_rpm_v is not None else "",
+                                "uniq rpm": "",
+                                "coverage": "",
+                                "abundance": "",
+                                "标准": pc.get("标准", ""),
+                                "参照背景": pc.get("参照背景", ""),
+                            }
+                        )
+                    adapter = self._next_adapter(adapter)
+
+                # NC：一条记录
+                nc_index = adapter
+                nc_lib_id = f"{nc_name}-{nc_index}-{yyyymmdd}"
+                nc_species = "/"
+                if self.nc_list:
+                    nc_species = str(self.nc_list[0].get("物种名称", "/")).strip() or "/"
+                nc_spike_v = self._rand_in_range(self._parse_range(self.nc_spike_rpm_range))
+                libraries.append(
+                    {
+                        "芯片": chip_sn,
+                        "芯片数据量": self.default_chip_data_amount,
+                        "上机时间": up_time,
+                        "样本名称": nc_name,
+                        "文库编号": nc_lib_id,
+                        "index": nc_index,
+                        "Clean Reads": "",
+                        "≥Q20%": "",
+                        "Q30": "",
+                        "内部对照spike.1RPM值": nc_spike_v if nc_spike_v is not None else "",
+                        "物种名称": nc_species,
+                        "分类": "",
+                        "taxid": "",
+                        "RC": "",
+                        "RA": "",
+                        "rpm": "",
+                        "uniq rpm": "",
+                        "coverage": "",
+                        "abundance": "",
+                        "标准": "不检出",
+                        "参照背景": "",
+                    }
+                )
+                adapter = self._next_adapter(adapter)
 
         return libraries
 
@@ -339,6 +379,37 @@ class ChipPlanner:
 
         start_yymmdd = meta.get("实验启动时间")
         days = int(meta.get("实验时间（天）") or 1)
+        two_per_day = str(meta.get("是否需要一天两次上机") or "").strip() == "是"
+        sessions_per_day = 2 if two_per_day else 1
+
+        # 芯片容量：来自Web/CLI参数（优先），否则用输入表或默认96
+        chip_capacity = int(meta.get("chip_capacity") or 96)
+
+        # 总样本单位（含PC/NC）：优先使用输入表显式字段
+        total_units = meta.get("样本总数量（含PC/NC）")
+        if total_units is None:
+            total_units = meta.get("样本数量（含PC/NC）")
+        if total_units is None:
+            total_units = meta.get("样本数量（含PC/NC）")
+        try:
+            total_units_int = int(re.sub(r"\D", "", str(total_units)) or "0")
+        except Exception:
+            total_units_int = 0
+        if total_units_int <= 0:
+            # 兜底：至少按 54 处理（避免生成0张芯片）
+            total_units_int = 54
+
+        # “一轮”需要几张芯片
+        chips_per_round = max(1, math.ceil(total_units_int / chip_capacity))
+
+        # 重复次数：优先使用输入表字段（通常等于 上机次数，例如 3天*2次/天=6）
+        repeats = meta.get("样本重复测试次数")
+        try:
+            repeats_int = int(re.sub(r"\D", "", str(repeats)) or "0")
+        except Exception:
+            repeats_int = 0
+        if repeats_int <= 0:
+            repeats_int = days * sessions_per_day
         sequencers = meta.get("sequencers", []) or []
 
         start_date = self._parse_yymmdd(start_yymmdd)
@@ -353,29 +424,35 @@ class ChipPlanner:
             run_map[sn] = int(re.sub(r"\D", "", str(run_start)) or "0")
 
         chips: List[Dict[str, Any]] = []
-        for day_offset in range(days):
+
+        # 按“重复次数”生成：每次重复（一次上机）在每台测序仪上跑完整一轮（可能需要多张芯片）
+        for rep_idx in range(repeats_int):
+            # 将重复次数映射到日期（每sessions_per_day次增加一天）
+            day_offset = rep_idx // sessions_per_day
             d = start_date + timedelta(days=day_offset)
             yymmdd_int = self._date_to_yymmdd_int(d)
+
             for seq in sequencers:
                 sn = str(seq.get("sn", "")).strip()
-                run = run_map.get(sn, 0)
                 model = ""
                 if sn in self.sequencer_info:
                     model = self.sequencer_info[sn].get("设备型号", "") or ""
 
-                chip = {
-                    "实验项目": project,
-                    "测序日期": yymmdd_int,
-                    "测序仪SN": sn,
-                    # 展示为数字（Excel里通常显示 143 而不是 0143），芯片SN内部会按4位补零
-                    "Run数": int(run),
-                    "芯片SN": self.build_chip_sn(yymmdd_int, sn, int(run)),
-                    "测序仪型号": model,
-                    "试验结果": "",
-                    "备注2": "",
-                }
-                chips.append(chip)
-                # 使用一次后+1
-                if sn:
-                    run_map[sn] = int(run) + 1
+                # 一轮需要 chips_per_round 张芯片（每张芯片对应一次run）
+                for _ in range(chips_per_round):
+                    run = run_map.get(sn, 0)
+                    chip = {
+                        "实验项目": project,
+                        "测序日期": yymmdd_int,
+                        "测序仪SN": sn,
+                        "Run数": int(run),
+                        "芯片SN": self.build_chip_sn(yymmdd_int, sn, int(run)),
+                        "测序仪型号": model,
+                        "试验结果": "",
+                        "备注2": "",
+                    }
+                    chips.append(chip)
+                    if sn:
+                        run_map[sn] = int(run) + 1
+
         return chips

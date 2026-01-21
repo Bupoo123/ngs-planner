@@ -122,6 +122,8 @@ def main():
     input_data = input_parser.parse()
     print(f"  找到 {len(input_data['samples'])} 个样本")
     meta = input_data.get("meta", {})
+    # CLI参数优先：注入chip_capacity，供芯片表数量计算使用
+    meta["chip_capacity"] = int(args.chip_capacity)
     
     # 解析规则文件
     print("步骤 2/5: 解析规则文件...")
@@ -164,7 +166,14 @@ def main():
         pc_spike_rpm_range=str(meta.get("F-PC__value3") or "").strip(),
         nc_spike_rpm_range=str(meta.get("F-NC__value3") or "").strip(),
     )
-    libraries = library_planner.plan_libraries(samples=input_data["samples"], chips=chips, research_id=str(meta.get("研究编号") or "").strip())
+    libraries = library_planner.plan_libraries(
+        samples=input_data["samples"],
+        chips=chips,
+        research_id=str(meta.get("研究编号") or "").strip(),
+        chip_capacity=int(args.chip_capacity),
+        include_controls_once=False,
+        include_controls_per_chip=True,
+    )
     print(f"  生成了 {len(libraries)} 条文库记录")
     
     # 生成输出文件
