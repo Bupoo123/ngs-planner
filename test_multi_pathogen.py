@@ -9,6 +9,7 @@ from pathlib import Path
 import tempfile
 
 import openpyxl
+import random
 
 from src.parser import InputParser
 from src.planner import LibraryPlanner
@@ -59,6 +60,7 @@ def main():
         chips = [
             {"芯片SN": "260113_TPNB500477_0143_AXXXXXXXXX", "测序日期": 260113, "测序仪SN": "TPNB500477"}
         ]
+        random.seed(1)
         libs = LibraryPlanner(rules={}, species_info={}, adapter_start="A01").plan_libraries(samples=samples, chips=chips)
         # 默认会追加一个NC行（即使未提供nc_list）
         assert len(libs) >= 3, libs
@@ -70,6 +72,8 @@ def main():
         assert libs[0]["物种名称"] == "肺炎支原体"
         assert libs[1]["物种名称"] == "人疱疹病毒5型(CMV)"
         assert libs[2]["物种名称"] == "铜绿假单胞菌"
+        # spike-rpm 与样本相关：三行应相同
+        assert libs[0]["内部对照spike.1RPM值"] == libs[1]["内部对照spike.1RPM值"] == libs[2]["内部对照spike.1RPM值"]
 
     print("TEST MULTI PATHOGEN: OK")
 

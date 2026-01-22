@@ -198,19 +198,26 @@ class LibraryPlanner:
                 sample_index = adapter
                 library_id = f"{sample_id}-{sn_last3}-{sample_index}-{yyyymmdd}"
 
+                # spike-rpm 与样本相关：每个样本单位只生成一次，所有病原体行共享
+                # 取样本的 Value3：可能被解析到每个病原体dict里（多病原体时一般相同）；这里取第一个非空即可
+                sample_spike_range = ""
+                if isinstance(species_list, list):
+                    for it in species_list:
+                        if isinstance(it, dict) and str(it.get("spike_rpm_range", "")).strip() != "":
+                            sample_spike_range = str(it.get("spike_rpm_range", "")).strip()
+                            break
+                sample_spike_v = self._rand_in_range(self._parse_range(sample_spike_range))
+
                 species_iter = species_list if species_list else [""]
                 for species in species_iter:
                     if isinstance(species, dict):
                         species_name = str(species.get("name", "")).strip()
                         rpm_range_s = species.get("rpm_range", "")
-                        spike_range_s = species.get("spike_rpm_range", "")
                     else:
                         species_name = str(species).strip()
                         rpm_range_s = ""
-                        spike_range_s = ""
 
                     rpm_v = self._rand_in_range(self._parse_range(rpm_range_s))
-                    spike_v = self._rand_in_range(self._parse_range(spike_range_s))
                     extra = self._lookup_species(species_name)
 
                     libraries.append(
@@ -224,7 +231,7 @@ class LibraryPlanner:
                             "Clean Reads": "",
                             "≥Q20%": "",
                             "Q30": "",
-                            "内部对照spike.1RPM值": spike_v if spike_v is not None else "",
+                            "内部对照spike.1RPM值": sample_spike_v if sample_spike_v is not None else "",
                             "物种名称": species_name,
                             "分类": extra.get("分类", ""),
                             "taxid": extra.get("taxid", ""),
