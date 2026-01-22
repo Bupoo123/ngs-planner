@@ -116,7 +116,7 @@ python3 main.py \
 | `--chip-template` | `-ct` | 芯片表模板文件路径 | `attachments/芯片表模版.xlsx` |
 | `--output` | `-o` | 输出目录 | `output` |
 | `--project` | `-j` | 项目名称 | `F项目` |
-| `--chip-capacity` | `-c` | 芯片容量 | `96` |
+| `--chip-capacity` | `-c` | 单张芯片文库数（含PC/NC） | `32` |
 | `--start-date` | `-d` | 开始日期（YYYY-MM-DD格式） | 今天 |
 
 ## 输入文件格式

@@ -80,9 +80,9 @@
             
             <!-- 芯片容量 -->
             <div class="mb-3">
-                <label for="chipCapacity" class="form-label">芯片容量</label>
-                <input type="number" class="form-control" id="chipCapacity" name="chip_capacity" value="96" min="1" required>
-                <small class="text-muted">每个芯片可容纳的样本数量</small>
+                <label for="chipCapacity" class="form-label">单张芯片文库数（含PC/NC）</label>
+                <input type="number" class="form-control" id="chipCapacity" name="chip_capacity" value="32" min="3" required>
+                <small class="text-muted">默认每张芯片固定包含 PC(占1接头) + NC(占1接头)，因此普通样本最多 30 个</small>
             </div>
             
             <!-- 开始日期 -->
